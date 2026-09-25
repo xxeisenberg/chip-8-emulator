@@ -1,0 +1,70 @@
+name: Build
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: chip8-linux
+            output_name: chip8
+          - os: macos-latest
+            artifact_name: chip8-macos
+            output_name: chip8
+          - os: windows-latest
+            artifact_name: chip8-windows
+            output_name: chip8.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libraylib-dev libasound2-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev libxcursor-dev libxinerama-dev
+
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          gcc main.c -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -o ${{ matrix.output_name }}
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install raylib
+
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          clang main.c $(pkg-config --cflags --libs raylib) -o ${{ matrix.output_name }}
+
+      - name: Set up MSYS2 (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-raylib
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          gcc main.c -lraylib -lopengl32 -lgdi32 -lwinmm -o ${{ matrix.output_name }}
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.output_name }}
