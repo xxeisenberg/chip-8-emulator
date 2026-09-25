@@ -26,42 +26,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install dependencies (Linux)
+      - name: Install Linux Build Dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libraylib-dev libasound2-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev libxcursor-dev libxinerama-dev
+          sudo apt-get install -y libasound2-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev libxcursor-dev libxinerama-dev libwayland-dev libxkbcommon-dev cmake
 
-      - name: Build (Linux)
+      - name: Build Raylib & Project (Linux)
         if: runner.os == 'Linux'
         run: |
-          gcc main.c -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -o ${{ matrix.output_name }}
+          git clone --depth 1 https://github.com/raysan5/raylib.git
+          cd raylib/src
+          make PLATFORM=PLATFORM_DESKTOP RAYLIB_LIBTYPE=STATIC
+          cd ../..
+          gcc main.c -Iraylib/src -Lraylib/src -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -o ${{ matrix.output_name }}
 
-      - name: Install dependencies (macOS)
+      - name: Install dependencies & Build (macOS)
         if: runner.os == 'macOS'
         run: |
           brew install raylib
-
-      - name: Build (macOS)
-        if: runner.os == 'macOS'
-        run: |
           clang main.c $(pkg-config --cflags --libs raylib) -o ${{ matrix.output_name }}
 
-      - name: Set up MSYS2 (Windows)
+      - name: Build Raylib & Project (Windows)
         if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: true
-          install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-raylib
-
-      - name: Build (Windows)
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
+        shell: bash
         run: |
-          gcc main.c -lraylib -lopengl32 -lgdi32 -lwinmm -o ${{ matrix.output_name }}
+          git clone --depth 1 https://github.com/raysan5/raylib.git
+          cd raylib/src
+          make PLATFORM=PLATFORM_DESKTOP CC=gcc
+          cd ../..
+          gcc main.c -Iraylib/src -Lraylib/src -lraylib -lopengl32 -lgdi32 -lwinmm -o ${{ matrix.output_name }}
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
